@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-glass: var(--glass);
+  --color-glass-border: var(--glass-border);
+  
+  --font-sans: var(--font-sans);
+}
+
+:root {
+  /* Voon Deep Dark Theme */
+  --background: #09090b; 
+  --foreground: #fafafa;
+  
+  /* Primary Action Colors */
+  --primary: #2563eb; 
+  --primary-dark: #1d4ed8;
+  
+  /* Glassmorphism Tokens */
+  --glass: rgba(255, 255, 255, 0.03); 
+  --glass-border: rgba(255, 255, 255, 0.08);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Utility for Glass Panels */
+@utility glass-panel {
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 1rem;
+}
+
+@utility glass-sidebar {
+  background: rgba(9, 9, 11, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-right: 1px solid var(--glass-border);
+}
