@@ -168,19 +168,32 @@ export default function EditorWorkspace({ id }: EditorWorkspaceProps) {
     canvas.renderAll();
   };
 
-  const handleReAddLogo = () => {
+  const handleReAddLogo = async () => {
     const canvas = fabricRef.current;
     const fabric = fabricModuleRef.current;
     if (!canvas || !fabric) return;
-    // Try to load brand logo from session/Supabase — for now use a placeholder
-    const logoUrl = 'https://upload.wikimedia.org/wikipedia/commons/4/4e/Playstation_logo_colour.svg';
-    fabric.Image.fromURL(logoUrl, (img: any) => {
-      img.scaleToWidth(120);
-      img.set({ left: 50, top: 50 });
-      canvas.add(img);
-      canvas.setActiveObject(img);
-      canvas.renderAll();
-    }, { crossOrigin: 'anonymous' });
+
+    try {
+      // Fetch the user's brand logo from Supabase
+      const res = await fetch('/api/brand-logo');
+      const data = await res.json();
+      
+      if (!data.logoUrl) {
+        alert('Brand Kit\'te logo bulunamadı. Önce Brand Kit sayfasından logo yükleyin.');
+        return;
+      }
+
+      fabric.Image.fromURL(data.logoUrl, (img: any) => {
+        img.scaleToWidth(150);
+        img.set({ left: 50, top: 50 });
+        canvas.add(img);
+        canvas.setActiveObject(img);
+        canvas.renderAll();
+      }, { crossOrigin: 'anonymous' });
+    } catch (err) {
+      console.error('Logo fetch error:', err);
+      alert('Logo yüklenirken hata oluştu.');
+    }
   };
 
   const handlePropertyChange = (property: string, value: any) => {
