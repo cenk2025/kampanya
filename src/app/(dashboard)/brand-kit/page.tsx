@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { HexColorPicker } from 'react-colorful';
-import { Palette, Upload, Type, Image as ImageIcon, Save, Check } from 'lucide-react';
+import { Palette, Upload, Type, Image as ImageIcon, Save, Check, Loader2 } from 'lucide-react';
 import BrandPreviewCard from '@/components/brand/BrandPreviewCard';
+import { createClient } from '@/lib/supabase/client';
 
 export default function BrandKitPage() {
   const [primaryColor, setPrimaryColor] = useState('#2563eb');
@@ -11,6 +12,32 @@ export default function BrandKitPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [brandVoice, setBrandVoice] = useState('Modern, tech-focused, professional');
   const [previewText, setPreviewText] = useState('Level up your campaigns');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function loadBrandKit() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('brand_assets')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (data) {
+        if (data.primary_color) setPrimaryColor(data.primary_color);
+        if (data.font_family) setFontFamily(data.font_family);
+        if (data.brand_voice) setBrandVoice(data.brand_voice);
+        if (data.logo_url) setLogoUrl(data.logo_url);
+      }
+      setIsLoading(false);
+    }
+    loadBrandKit();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   const [logoPosition, setLogoPosition] = useState<'TL' | 'TR' | 'BL' | 'BR'>('BL');
   const [bgImage, setBgImage] = useState('https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80');
@@ -28,7 +55,7 @@ export default function BrandKitPage() {
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Create local preview URL
+      setLogoFile(file);
       const url = URL.createObjectURL(file);
       setLogoUrl(url);
     }
@@ -36,12 +63,68 @@ export default function BrandKitPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    // Simulate API call to save to Supabase
-    await new Promise(r => setTimeout(r, 1000));
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("Yetkiniz yok.");
+        return;
+      }
+
+      let finalLogoUrl = logoUrl;
+
+      if (logoFile) {
+        const fileExt = logoFile.name.split('.').pop();
+        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('brand-logos')
+          .upload(fileName, logoFile, { upsert: true });
+          
+        if (uploadError) throw new Error('Logo yükleme hatası: ' + uploadError.message);
+        
+        const { data } = supabase.storage
+          .from('brand-logos')
+          .getPublicUrl(fileName);
+          
+        finalLogoUrl = data.publicUrl;
+      }
+
+      const { error } = await supabase
+        .from('brand_assets')
+        .upsert({
+          user_id: user.id,
+          primary_color: primaryColor,
+          font_family: fontFamily,
+          logo_url: finalLogoUrl,
+          brand_voice: brandVoice,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+
+      if (error) throw error;
+      
+      // Update logoUrl to the public URL so preview keeps working correctly
+      if (logoFile && finalLogoUrl) {
+        setLogoUrl(finalLogoUrl);
+        setLogoFile(null); // Clear the file indicator after upload
+      }
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Marka kiti kaydedilirken hata oluştu.');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[50vh] w-full">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-8 pb-10">
